@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SVG Processor</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" />
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f2f2f2;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 30px 40px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: bold;
+      color: #444;
+    }
+    input[type="file"] {
+      display: block;
+      margin-bottom: 20px;
+    }
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    button {
+      background: #007BFF;
+      color: #fff;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background 0.3s ease;
+    }
+    button:hover:not(:disabled) {
+      background: #0056b3;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    textarea {
+      width: 100%;
+      height: 300px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 14px;
+      color: #333;
+      resize: vertical;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SVG Processor</h1>
+    <label for="svgFile">Select an SVG file to process:</label>
+    <input type="file" id="svgFile" accept=".svg" />
+    <div class="buttons">
+      <button id="processBtn">Process SVG</button>
+      <button id="downloadBtn" disabled>Download Processed SVG</button>
+    </div>
+    <h2>Processed SVG Code</h2>
+    <textarea id="output" readonly></textarea>
+  </div>
+
+  <script>
+    const processBtn = document.getElementById('processBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const outputArea = document.getElementById('output');
+
+    let processedSvgText = "";
+    let originalFileName = "";
+
+    processBtn.addEventListener('click', function () {
+      const fileInput = document.getElementById('svgFile');
+
+      if (!fileInput.files.length) {
+        alert("Please select an SVG file.");
+        return;
+      }
+
+      const file = fileInput.files[0];
+      originalFileName = file.name; // Store the original file name
+
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        const svgText = e.target.result;
+
+        // Parse the SVG string into an XML document
+        const parser = new DOMParser();
+        const svgDoc = parser.parseFromString(svgText, "image/svg+xml");
+        const svgEl = svgDoc.documentElement;
+
+        // Ensure the root element is <svg>
+        if (svgEl.nodeName.toLowerCase() !== "svg") {
+          alert("The uploaded file does not appear to be a valid SVG.");
+          return;
+        }
+
+        // Remove the width and height attributes from the <svg> tag
+        svgEl.removeAttribute("width");
+        svgEl.removeAttribute("height");
+
+        // Replace any fill attribute with "currentColor"
+        const elementsWithFill = svgDoc.querySelectorAll("[fill]");
+        elementsWithFill.forEach(el => {
+          el.setAttribute("fill", "currentColor");
+        });
+
+        // Serialize the modified SVG back to a string
+        const serializer = new XMLSerializer();
+        processedSvgText = serializer.serializeToString(svgDoc);
+
+        // Display the processed SVG code in the textarea
+        outputArea.value = processedSvgText;
+
+        // Enable the download button
+        downloadBtn.disabled = false;
+      };
+
+      // Read the file as text
+      reader.readAsText(file);
+    });
+
+    downloadBtn.addEventListener('click', function () {
+      if (!processedSvgText) return;
+
+      // Compute a new file name by appending '_processed' before the extension
+      let newFileName = originalFileName;
+      const dotIndex = originalFileName.lastIndexOf('.');
+      if (dotIndex !== -1) {
+        newFileName =
+          originalFileName.substring(0, dotIndex) +
+          "_processed" +
+          originalFileName.substring(dotIndex);
+      } else {
+        newFileName += "_processed";
+      }
+
+      const blob = new Blob([processedSvgText], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = newFileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>
